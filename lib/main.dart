@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'features/chat/incoming_call_listener.dart';
 import 'repositories/auth_repository.dart';
 import 'routing/app_router.dart';
 import 'services/push_notification_service.dart';
@@ -55,6 +56,9 @@ class SaathiraApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
       routerConfig: router,
+      builder: (context, child) => IncomingCallListenerWrapper(
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

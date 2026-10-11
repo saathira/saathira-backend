@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../repositories/auth_repository.dart';
+import '../../services/webrtc_call_service.dart';
 import '../../theme/app_theme.dart';
 import '../safety/report_user_dialog.dart';
 
@@ -10,7 +13,7 @@ enum CallState {
   ended,
 }
 
-class InAppCallScreen extends StatefulWidget {
+class InAppCallScreen extends ConsumerStatefulWidget {
   const InAppCallScreen({
     super.key,
     required this.recipientName,
@@ -18,6 +21,8 @@ class InAppCallScreen extends StatefulWidget {
     required this.bookingId,
     this.roleLabel = 'Companion',
     this.recipientId,
+    this.isIncoming = false,
+    this.offerData,
   });
 
   final String recipientName;
@@ -25,7 +30,10 @@ class InAppCallScreen extends StatefulWidget {
   final String bookingId;
   final String roleLabel;
   final String? recipientId;
+  final bool isIncoming;
+  final Map<String, dynamic>? offerData;
 
+  /// Start an outgoing call to the recipient
   static Future<void> start(
     BuildContext context, {
     required String recipientName,
@@ -45,6 +53,47 @@ class InAppCallScreen extends StatefulWidget {
           bookingId: bookingId,
           roleLabel: roleLabel,
           recipientId: recipientId,
+          isIncoming: false,
+        ),
+        transitionsBuilder: (context, anim1, anim2, child) {
+          return FadeTransition(
+            opacity: anim1,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.1),
+                end: Offset.zero,
+              ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Answer an incoming call
+  static Future<void> answer(
+    BuildContext context, {
+    required String callerName,
+    String? callerPhoto,
+    required String bookingId,
+    required Map<String, dynamic> offerData,
+    String roleLabel = 'Caller',
+    String? callerId,
+  }) {
+    return Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierDismissible: false,
+        barrierColor: Colors.black.withValues(alpha: 0.85),
+        pageBuilder: (context, anim1, anim2) => InAppCallScreen(
+          recipientName: callerName,
+          recipientPhoto: callerPhoto,
+          bookingId: bookingId,
+          roleLabel: roleLabel,
+          recipientId: callerId,
+          isIncoming: true,
+          offerData: offerData,
         ),
         transitionsBuilder: (context, anim1, anim2, child) {
           return FadeTransition(
@@ -63,19 +112,20 @@ class InAppCallScreen extends StatefulWidget {
   }
 
   @override
-  State<InAppCallScreen> createState() => _InAppCallScreenState();
+  ConsumerState<InAppCallScreen> createState() => _InAppCallScreenState();
 }
 
-class _InAppCallScreenState extends State<InAppCallScreen>
+class _InAppCallScreenState extends ConsumerState<InAppCallScreen>
     with SingleTickerProviderStateMixin {
   CallState _callState = CallState.connecting;
   bool _isMuted = false;
-  bool _isSpeakerOn = true;
+  bool _isSpeakerOn = false;
   int _callDurationSeconds = 0;
   Timer? _callTimer;
-  Timer? _stateTimer;
+  String _statusText = 'Securing private connection...';
 
   late AnimationController _pulseCtrl;
+  late WebRtcCallService _callService;
 
   @override
   void initState() {
@@ -85,22 +135,93 @@ class _InAppCallScreenState extends State<InAppCallScreen>
       duration: const Duration(milliseconds: 2000),
     )..repeat();
 
-    _simulateCallFlow();
+    _callService = ref.read(webrtcCallServiceProvider);
+    _setupCallListeners();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeCall();
+    });
   }
 
-  void _simulateCallFlow() {
-    // 1.5s -> Ringing
-    _stateTimer = Timer(const Duration(milliseconds: 1400), () {
-      if (!mounted || _callState == CallState.ended) return;
-      setState(() => _callState = CallState.ringing);
+  void _setupCallListeners() {
+    _callService.onStatusChanged = (status) {
+      if (!mounted) return;
+      switch (status) {
+        case WebRtcCallStatus.connecting:
+          setState(() {
+            _callState = CallState.connecting;
+            _statusText = 'Connecting encrypted audio...';
+          });
+          break;
+        case WebRtcCallStatus.ringing:
+          setState(() {
+            _callState = CallState.ringing;
+            _statusText = 'Ringing...';
+          });
+          break;
+        case WebRtcCallStatus.connected:
+          setState(() {
+            _callState = CallState.connected;
+          });
+          _startTimer();
+          break;
+        case WebRtcCallStatus.rejected:
+          setState(() {
+            _callState = CallState.ended;
+            _statusText = 'Call declined';
+          });
+          _autoCloseAfterDelay();
+          break;
+        case WebRtcCallStatus.ended:
+          setState(() {
+            _callState = CallState.ended;
+            _statusText = 'Call ended';
+          });
+          _autoCloseAfterDelay();
+          break;
+        case WebRtcCallStatus.error:
+          setState(() {
+            _callState = CallState.ended;
+            _statusText = 'Connection failed';
+          });
+          _autoCloseAfterDelay();
+          break;
+        default:
+          break;
+      }
+    };
 
-      // 3.5s -> Connected
-      _stateTimer = Timer(const Duration(milliseconds: 2200), () {
-        if (!mounted || _callState == CallState.ended) return;
-        setState(() => _callState = CallState.connected);
-        _startTimer();
-      });
-    });
+    _callService.onError = (msg) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+        );
+      }
+    };
+  }
+
+  Future<void> _initializeCall() async {
+    if (widget.isIncoming) {
+      if (widget.offerData != null) {
+        await _callService.answerCall(
+          bookingId: widget.bookingId,
+          offerData: widget.offerData!,
+        );
+      }
+    } else {
+      final currentUser = ref.read(sessionProvider).value?.user;
+      final callerId = currentUser?.id ?? 'anonymous';
+      final callerName = currentUser?.fullName ?? 'User';
+      final callerPhoto = currentUser?.photoUrl;
+
+      await _callService.startCall(
+        bookingId: widget.bookingId,
+        callerId: callerId,
+        callerName: callerName,
+        callerPhoto: callerPhoto,
+        recipientId: widget.recipientId ?? '',
+      );
+    }
   }
 
   void _startTimer() {
@@ -116,22 +237,41 @@ class _InAppCallScreenState extends State<InAppCallScreen>
     });
   }
 
-  void _endCall() {
+  void _autoCloseAfterDelay() {
     _callTimer?.cancel();
-    _stateTimer?.cancel();
-    setState(() => _callState = CallState.ended);
-
-    Future.delayed(const Duration(milliseconds: 800), () {
+    Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) {
         Navigator.of(context).pop();
       }
     });
   }
 
+  Future<void> _handleEndCall() async {
+    _callTimer?.cancel();
+    setState(() => _callState = CallState.ended);
+    await _callService.endCall(widget.bookingId);
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _isMuted = !_isMuted;
+    });
+    _callService.setMuted(_isMuted);
+  }
+
+  void _toggleSpeaker() {
+    setState(() {
+      _isSpeakerOn = !_isSpeakerOn;
+    });
+    _callService.setSpeakerphone(_isSpeakerOn);
+  }
+
   @override
   void dispose() {
     _callTimer?.cancel();
-    _stateTimer?.cancel();
     _pulseCtrl.dispose();
     super.dispose();
   }
@@ -144,269 +284,214 @@ class _InAppCallScreenState extends State<InAppCallScreen>
 
   @override
   Widget build(BuildContext context) {
-    final initialLetter = widget.recipientName.isNotEmpty
-        ? widget.recipientName[0].toUpperCase()
-        : 'U';
-
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Top Privacy Shield Header
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(30),
-                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.shield_rounded, color: AppColors.primary, size: 16),
-                              SizedBox(width: 8),
-                              Text(
-                                '🔒 Number Masked • Encrypted Private Call',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.2,
+                      // Top Bar
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.white12),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.shield_outlined, size: 14, color: Color(0xFF10B981)),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'WebRTC Encrypted',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
+                          IconButton(
+                            icon: const Icon(Icons.report_problem_outlined, color: Colors.white70),
+                            tooltip: 'Safety & Report',
+                            onPressed: () {
+                              ReportUserDialog.show(
+                                context,
+                                reportedUserId: widget.recipientId ?? 'unknown',
+                                reportedUserName: widget.recipientName,
+                                bookingId: widget.bookingId,
+                              );
+                            },
+                          ),
+                        ],
                       ),
 
-                      const Spacer(),
-
-                      // Caller Info & Pulse Animation
+                      // Center Profile & Call Status
                       Column(
                         children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Outer ripple pulse rings when ringing/connected
-                              if (_callState != CallState.ended)
-                                AnimatedBuilder(
-                                  animation: _pulseCtrl,
-                                  builder: (context, child) {
-                                    final val = _pulseCtrl.value;
-                                    return Container(
-                                      width: 130 + (val * 34),
-                                      height: 130 + (val * 34),
-                                      decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: (_callState == CallState.connected
-                                                  ? const Color(0xFF10B981)
-                                                  : AppColors.primary)
-                                              .withValues(alpha: (1 - val) * 0.5),
-                                          width: 2,
+                          const SizedBox(height: 12),
+                          // Pulse Ring Avatar
+                          AnimatedBuilder(
+                            animation: _pulseCtrl,
+                            builder: (context, child) {
+                              final wave = _callState == CallState.connected
+                                  ? (1.0 + 0.08 * _pulseCtrl.value)
+                                  : 1.0;
+                              return Transform.scale(
+                                scale: wave,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    if (_callState == CallState.connected)
+                                      Container(
+                                        width: 140,
+                                        height: 140,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color: AppColors.primary.withValues(
+                                              alpha: (1.0 - _pulseCtrl.value) * 0.5,
+                                            ),
+                                            width: 3,
+                                          ),
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
-
-                              // Avatar Circle
-                              Container(
-                                width: 110,
-                                height: 110,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppColors.primary,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.primary.withValues(alpha: 0.35),
-                                      blurRadius: 24,
-                                      spreadRadius: 4,
+                                    CircleAvatar(
+                                      radius: 54,
+                                      backgroundColor: AppColors.primary,
+                                      backgroundImage: (widget.recipientPhoto != null &&
+                                              widget.recipientPhoto!.isNotEmpty)
+                                          ? NetworkImage(widget.recipientPhoto!)
+                                          : null,
+                                      child: (widget.recipientPhoto == null ||
+                                              widget.recipientPhoto!.isEmpty)
+                                          ? Text(
+                                              widget.recipientName.isNotEmpty
+                                                  ? widget.recipientName[0].toUpperCase()
+                                                  : 'C',
+                                              style: const TextStyle(
+                                                fontSize: 42,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            )
+                                          : null,
                                     ),
                                   ],
                                 ),
-                                child: Center(
-                                  child: Text(
-                                    initialLetter,
-                                    style: const TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                              );
+                            },
                           ),
-
-                          const SizedBox(height: 18),
-
+                          const SizedBox(height: 20),
                           Text(
                             widget.recipientName,
                             style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
                               color: Colors.white,
-                              letterSpacing: 0.3,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: -0.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.roleLabel,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 6),
-
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              widget.roleLabel,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.muted,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-
                           const SizedBox(height: 14),
-
-                          // Status Indicator
                           _buildStatusIndicator(),
                         ],
                       ),
 
-                      const Spacer(),
-
-                      // Sound Wave Equalizer Bars when connected
-                      if (_callState == CallState.connected)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(5, (index) {
-                              return AnimatedBuilder(
-                                animation: _pulseCtrl,
-                                builder: (context, child) {
-                                  final wave = ((_pulseCtrl.value * 2 + (index * 0.25)) % 1.0);
-                                  final height = 10.0 + (wave * 18.0);
-                                  return Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                                    width: 4,
-                                    height: height,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF10B981).withValues(alpha: 0.8),
-                                      borderRadius: BorderRadius.circular(4),
+                      // Bottom Call Controls
+                      Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              // Mute Toggle
+                              _buildControlButton(
+                                icon: _isMuted ? Icons.mic_off : Icons.mic,
+                                label: _isMuted ? 'Muted' : 'Mute',
+                                isActive: _isMuted,
+                                onTap: _callState == CallState.connected ? _toggleMute : () {},
+                              ),
+                              // Speaker Toggle
+                              _buildControlButton(
+                                icon: _isSpeakerOn ? Icons.volume_up : Icons.volume_down,
+                                label: _isSpeakerOn ? 'Speaker' : 'Earpiece',
+                                isActive: _isSpeakerOn,
+                                onTap: _callState == CallState.connected ? _toggleSpeaker : () {},
+                              ),
+                              // Safety Info
+                              _buildControlButton(
+                                icon: Icons.privacy_tip_outlined,
+                                label: 'Private',
+                                isActive: false,
+                                onTap: () {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('🔒 Phone numbers are masked and hidden for privacy.'),
+                                      behavior: SnackBarBehavior.floating,
                                     ),
                                   );
                                 },
-                              );
-                            }),
+                              ),
+                            ],
                           ),
-                        ),
+                          const SizedBox(height: 36),
 
-                      // Call Controls
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                              children: [
-                                // Mute Button
-                                _buildControlButton(
-                                  icon: _isMuted ? Icons.mic_off_rounded : Icons.mic_rounded,
-                                  label: _isMuted ? 'Unmute' : 'Mute',
-                                  isActive: _isMuted,
-                                  onTap: () => setState(() => _isMuted = !_isMuted),
-                                ),
-
-                                // Speaker Button
-                                _buildControlButton(
-                                  icon: _isSpeakerOn
-                                      ? Icons.volume_up_rounded
-                                      : Icons.volume_down_rounded,
-                                  label: _isSpeakerOn ? 'Speaker' : 'Earpiece',
-                                  isActive: _isSpeakerOn,
-                                  onTap: () => setState(() => _isSpeakerOn = !_isSpeakerOn),
-                                ),
-
-                                // Safety / Report
-                                _buildControlButton(
-                                  icon: Icons.flag_outlined,
-                                  label: 'Report',
-                                  isActive: false,
-                                  iconColor: Colors.redAccent,
-                                  onTap: () {
-                                    if (widget.recipientId != null) {
-                                      ReportUserDialog.show(
-                                        context,
-                                        reportedUserId: widget.recipientId!,
-                                        reportedUserName: widget.recipientName,
-                                        bookingId: widget.bookingId,
-                                      );
-                                    } else {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Safety report available in chat menu.')),
-                                      );
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 28),
-
-                            // End Call Action Button
-                            GestureDetector(
-                              onTap: _endCall,
-                              child: Container(
-                                width: 68,
-                                height: 68,
-                                decoration: BoxDecoration(
-                                  color: Colors.redAccent,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.redAccent.withValues(alpha: 0.4),
-                                      blurRadius: 18,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.call_end_rounded,
-                                    color: Colors.white,
-                                    size: 32,
+                          // End Call Button
+                          GestureDetector(
+                            onTap: _handleEndCall,
+                            child: Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.shade700,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.red.withValues(alpha: 0.4),
+                                    blurRadius: 20,
+                                    spreadRadius: 2,
                                   ),
-                                ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.call_end,
+                                color: Colors.white,
+                                size: 34,
                               ),
                             ),
-
-                            const SizedBox(height: 10),
-                            const Text(
-                              'End Call',
-                              style: TextStyle(
-                                color: Colors.white60,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'End Call',
+                            style: TextStyle(
+                              color: Colors.white60,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-
-                      const SizedBox(height: 10),
                     ],
                   ),
                 ),
@@ -423,8 +508,8 @@ class _InAppCallScreenState extends State<InAppCallScreen>
       case CallState.connecting:
         return Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            SizedBox(
+          children: [
+            const SizedBox(
               width: 14,
               height: 14,
               child: CircularProgressIndicator(
@@ -432,17 +517,17 @@ class _InAppCallScreenState extends State<InAppCallScreen>
                 valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
               ),
             ),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text(
-              'Securing private connection...',
-              style: TextStyle(color: AppColors.muted, fontSize: 14),
+              _statusText,
+              style: const TextStyle(color: AppColors.muted, fontSize: 14),
             ),
           ],
         );
       case CallState.ringing:
-        return const Text(
-          'Ringing...',
-          style: TextStyle(
+        return Text(
+          _statusText,
+          style: const TextStyle(
             color: AppColors.secondary,
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -474,9 +559,9 @@ class _InAppCallScreenState extends State<InAppCallScreen>
           ],
         );
       case CallState.ended:
-        return const Text(
-          'Call Ended',
-          style: TextStyle(
+        return Text(
+          _statusText,
+          style: const TextStyle(
             color: Colors.redAccent,
             fontSize: 15,
             fontWeight: FontWeight.bold,
@@ -490,7 +575,6 @@ class _InAppCallScreenState extends State<InAppCallScreen>
     required String label,
     required bool isActive,
     required VoidCallback onTap,
-    Color? iconColor,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -511,7 +595,7 @@ class _InAppCallScreenState extends State<InAppCallScreen>
             child: Center(
               child: Icon(
                 icon,
-                color: iconColor ?? (isActive ? Colors.white : Colors.white70),
+                color: isActive ? Colors.white : Colors.white70,
                 size: 24,
               ),
             ),

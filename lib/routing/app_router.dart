@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/auth/otp_screen.dart';
@@ -25,6 +25,8 @@ import '../models/app_user.dart';
 import '../models/companion_profile.dart';
 import '../repositories/auth_repository.dart';
 
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 const _publicPaths = {'/', '/welcome', '/login', '/otp'};
 const _entryPaths = {'/', '/welcome', '/login', '/otp', '/register'};
 
@@ -41,6 +43,7 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) => RouterNotifier(
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     refreshListenable: notifier,
     initialLocation: '/',
     redirect: (context, state) {
