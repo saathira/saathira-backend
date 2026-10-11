@@ -45,3 +45,21 @@ export class ResolveDisputeDto {
   @IsOptional()
   refundCustomer?: boolean;
 }
+
+export class SendTestNotificationDto {
+  @IsString()
+  @IsNotEmpty()
+  userId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @IsString()
+  @IsNotEmpty()
+  body: string;
+
+  @IsString()
+  @IsOptional()
+  type?: string;
+}

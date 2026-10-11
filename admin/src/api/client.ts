@@ -66,4 +66,9 @@ export const adminApi = {
       body: JSON.stringify({ resolution, refundCustomer }),
     }),
   getAuditLogs: () => adminFetch<any>('/admin/audit-logs'),
+  sendTestNotification: (dto: { userId: string; title: string; body: string; type?: string }) =>
+    adminFetch<any>('/admin/notifications/test', {
+      method: 'POST',
+      body: JSON.stringify(dto),
+    }),
 };

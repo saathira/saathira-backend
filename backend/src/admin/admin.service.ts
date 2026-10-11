@@ -1,17 +1,22 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, UserStatus } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.module';
 import {
   QueryAdminDto,
   ResolveDisputeDto,
   ResolveReportDto,
   ReviewVerificationDto,
+  SendTestNotificationDto,
   UpdateUserStatusDto,
 } from './admin.dto';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async logAudit(actorId: string, action: string, entityType: string, entityId: string, metadata?: any) {
     return this.prisma.auditLog.create({
@@ -448,5 +453,67 @@ export class AdminService {
     ]);
 
     return { items, total, page, pageSize };
+  }
+
+  // 8. Notifications / Push Test
+  async sendTestNotification(dto: SendTestNotificationDto, adminUid: string) {
+    if (dto.userId === 'ALL') {
+      const users = await this.prisma.user.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true, fcmToken: true, fullName: true },
+      });
+      let sentCount = 0;
+      for (const u of users) {
+        await this.notificationsService.createAndSendNotification({
+          userId: u.id,
+          type: dto.type ?? 'SYSTEM',
+          title: dto.title,
+          body: dto.body,
+          data: { test: 'true', sentAt: new Date().toISOString() },
+        });
+        if (u.fcmToken) sentCount++;
+      }
+      await this.logAudit(adminUid, 'BROADCAST_TEST_NOTIFICATION', 'Notification', 'ALL', {
+        title: dto.title,
+        totalUsers: users.length,
+        fcmTargetCount: sentCount,
+      });
+      return {
+        success: true,
+        message: `Notification broadcast to ${users.length} users (${sentCount} devices with active FCM push tokens).`,
+        totalRecipients: users.length,
+        fcmTargetCount: sentCount,
+      };
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: dto.userId },
+      select: { id: true, fullName: true, phone: true, fcmToken: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    const notification = await this.notificationsService.createAndSendNotification({
+      userId: user.id,
+      type: dto.type ?? 'SYSTEM',
+      title: dto.title,
+      body: dto.body,
+      data: { test: 'true', sentAt: new Date().toISOString() },
+    });
+
+    await this.logAudit(adminUid, 'SEND_TEST_NOTIFICATION', 'Notification', notification.id, {
+      targetUserId: user.id,
+      hasFcmToken: Boolean(user.fcmToken),
+      title: dto.title,
+    });
+
+    return {
+      success: true,
+      notification,
+      hasFcmToken: Boolean(user.fcmToken),
+      fcmTokenSnippet: user.fcmToken ? `${user.fcmToken.slice(0, 12)}...` : null,
+      message: user.fcmToken
+        ? `✅ Push notification dispatched to ${user.fullName || 'User'}'s registered device via Firebase FCM!`
+        : `⚠️ In-app notification created in database inbox, but user has no FCM token yet. Have user log in to mobile app first.`,
+    };
   }
 }

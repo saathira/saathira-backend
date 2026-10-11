@@ -6,6 +6,7 @@ import {
   ResolveDisputeDto,
   ResolveReportDto,
   ReviewVerificationDto,
+  SendTestNotificationDto,
   UpdateUserStatusDto,
 } from './admin.dto';
 import { AdminService } from './admin.service';
@@ -120,5 +121,14 @@ export class AdminController {
   @Get('audit-logs')
   getAuditLogs(@Query() q: QueryAdminDto) {
     return this.adminService.getAuditLogs(q);
+  }
+
+  // Notifications / Push Test
+  @Post('notifications/test')
+  sendTestNotification(
+    @CurrentAuth() auth: AuthContext,
+    @Body() dto: SendTestNotificationDto,
+  ) {
+    return this.adminService.sendTestNotification(dto, auth.uid);
   }
 }
