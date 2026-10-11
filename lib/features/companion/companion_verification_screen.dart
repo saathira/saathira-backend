@@ -219,18 +219,30 @@ class _CompanionVerificationScreenState extends ConsumerState<CompanionVerificat
                   ),
                   const SizedBox(height: 14),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton.icon(
-                        onPressed: () => _pickDocument(ImageSource.camera),
-                        icon: const Icon(Icons.camera_alt, size: 18),
-                        label: const Text('Take Photo'),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _pickDocument(ImageSource.camera),
+                          icon: const Icon(Icons.camera_alt, size: 18),
+                          label: const Text('Take Photo'),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                          ),
+                        ),
                       ),
                       const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        onPressed: () => _pickDocument(ImageSource.gallery),
-                        icon: const Icon(Icons.photo_library, size: 18),
-                        label: const Text('Gallery'),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _pickDocument(ImageSource.gallery),
+                          icon: const Icon(Icons.photo_library, size: 18),
+                          label: const Text('Gallery'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white24),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
                       ),
                     ],
                   ),
