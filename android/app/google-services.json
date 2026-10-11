@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "102577123654",
+    "project_id": "saathira-app",
+    "storage_bucket": "saathira-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:102577123654:android:0fdea025f4926d0d68b547",
+        "android_client_info": {
+          "package_name": "com.partner.saathira.saathira"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBP4-EZY_UicY5AftPP1MRsdexyX2YiQ6g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
