@@ -112,9 +112,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Companion Routes
       GoRoute(path: '/companion/dashboard', builder: (_, _) => const CompanionDashboardScreen()),
       GoRoute(path: '/companion/verification', builder: (_, _) => const CompanionVerificationScreen()),
+      GoRoute(path: '/companion-verification', builder: (_, _) => const CompanionVerificationScreen()),
       GoRoute(path: '/companion/activities', builder: (_, _) => const CompanionActivitiesScreen()),
+      GoRoute(path: '/companion-activities', builder: (_, _) => const CompanionActivitiesScreen()),
       GoRoute(path: '/companion/availability', builder: (_, _) => const CompanionAvailabilityScreen()),
+      GoRoute(path: '/companion-availability', builder: (_, _) => const CompanionAvailabilityScreen()),
       GoRoute(path: '/companion/profile-edit', builder: (_, _) => const CompanionProfileEditScreen()),
+      GoRoute(path: '/companion/settings', builder: (_, _) => const CompanionProfileEditScreen()),
+      GoRoute(path: '/companion-settings', builder: (_, _) => const CompanionProfileEditScreen()),
       GoRoute(
         path: '/companion/detail/:id',
         builder: (_, s) => CompanionDetailScreen(companionId: s.pathParameters['id']!),

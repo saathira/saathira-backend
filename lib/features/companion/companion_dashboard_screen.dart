@@ -203,6 +203,16 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
         title: const Text('Companion Hub', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'My Bookings',
+            onPressed: () => context.push('/bookings'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline_rounded),
+            tooltip: 'Messages',
+            onPressed: () => context.push('/chat'),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh',
             onPressed: () => ref.read(myCompanionProfileProvider.notifier).refresh(),
@@ -360,7 +370,7 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
                           ),
                           child: const Text('Required', style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold)),
                         ),
-                  onTap: () => context.push('/companion-verification'),
+                  onTap: () => context.push('/companion/verification'),
                 ),
 
                 // 2. Activities & Custom Rates Menu Card
@@ -369,7 +379,7 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
                   icon: Icons.checklist_rtl_rounded,
                   title: 'Offered Activities & Pricing',
                   subtitle: 'Select activities you offer and configure custom rates',
-                  onTap: () => context.push('/companion-activities'),
+                  onTap: () => context.push('/companion/activities'),
                 ),
 
                 // 3. Weekly Availability Slots
@@ -378,7 +388,7 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
                   icon: Icons.calendar_month_outlined,
                   title: 'Weekly Working Hours',
                   subtitle: 'Manage your active days and booking time slots',
-                  onTap: () => context.push('/companion-availability'),
+                  onTap: () => context.push('/companion/availability'),
                 ),
 
                 // 4. Hourly Base Rate & Bio Settings
@@ -387,7 +397,7 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
                   icon: Icons.currency_rupee_rounded,
                   title: 'Profile, Bio & Base Rate',
                   subtitle: '₹${((profile?.hourlyRate ?? 100000) / 100).toStringAsFixed(0)}/hr • Radius: ${profile?.serviceRadiusKm ?? 10} km',
-                  onTap: () => context.push('/companion-settings'),
+                  onTap: () => context.push('/companion/profile-edit'),
                 ),
 
                 const SizedBox(height: 20),
@@ -402,7 +412,7 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
                   subtitle: profile?.payoutUpi != null
                       ? 'Payouts sent to: ${profile!.payoutUpi}'
                       : 'Link UPI VPA to receive booking payments automatically',
-                  onTap: () => context.push('/companion-settings'),
+                  onTap: () => context.push('/companion/profile-edit'),
                 ),
               ],
             ),
