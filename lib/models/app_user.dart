@@ -26,6 +26,28 @@ class AppUser {
     this.verificationStatus,
   });
 
+  AppUser copyWith({
+    String? id,
+    AppRole? role,
+    String? fullName,
+    String? phone,
+    String? email,
+    String? city,
+    String? photoUrl,
+    String? verificationStatus,
+  }) {
+    return AppUser(
+      id: id ?? this.id,
+      role: role ?? this.role,
+      fullName: fullName ?? this.fullName,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      city: city ?? this.city,
+      photoUrl: photoUrl ?? this.photoUrl,
+      verificationStatus: verificationStatus ?? this.verificationStatus,
+    );
+  }
+
   factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
         id: j['id'] as String,
         role: AppRoleApi.from(j['role'] as String),
@@ -43,4 +65,14 @@ class Session {
   final bool registered;
   final AppUser? user;
   const Session({required this.registered, this.user});
+
+  Session copyWith({
+    bool? registered,
+    AppUser? user,
+  }) {
+    return Session(
+      registered: registered ?? this.registered,
+      user: user ?? this.user,
+    );
+  }
 }

@@ -114,7 +114,7 @@ class _CompanionVerificationScreenState extends ConsumerState<CompanionVerificat
         _selfieFile = null;
       });
       ref.read(myCompanionProfileProvider.notifier).refresh();
-      ref.invalidate(sessionProvider);
+      ref.read(sessionProvider.notifier).refresh();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

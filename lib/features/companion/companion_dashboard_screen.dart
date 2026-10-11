@@ -41,8 +41,8 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
         });
       }
 
-      // 2. Invalidate global sessionProvider & companion profile
-      ref.invalidate(sessionProvider);
+      // 2. Hot-load image into global sessionProvider with zero reload or redirect
+      ref.read(sessionProvider.notifier).updatePhotoUrl(newPhotoUrl);
       ref.read(myCompanionProfileProvider.notifier).refresh();
 
       if (mounted) {

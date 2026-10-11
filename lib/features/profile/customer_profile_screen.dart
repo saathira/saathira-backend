@@ -42,8 +42,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
         });
       }
 
-      // 2. Invalidate global sessionProvider across the app
-      ref.invalidate(sessionProvider);
+      // 2. Hot-load image into global sessionProvider with zero reload or redirect
+      ref.read(sessionProvider.notifier).updatePhotoUrl(newPhotoUrl);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -95,17 +95,39 @@ final firebaseUserProvider = StreamProvider<User?>(
   (ref) => ref.watch(authRepositoryProvider).authChanges(),
 );
 
-final sessionProvider = FutureProvider<Session?>((ref) async {
-  if (!ref.watch(firebaseReadyProvider)) return null;
-  ref.watch(firebaseUserProvider); // re-run on sign-in / sign-out
-  if (FirebaseAuth.instance.currentUser == null) return null;
-  try {
-    return await ref.read(authRepositoryProvider).fetchSession();
-  } catch (e) {
-    // Return null or rethrow so the app knows it's loading / connecting rather than unregistered
-    return null;
+class SessionNotifier extends AsyncNotifier<Session?> {
+  @override
+  Future<Session?> build() async {
+    if (!ref.watch(firebaseReadyProvider)) return null;
+    ref.watch(firebaseUserProvider); // re-run on sign-in / sign-out
+    if (FirebaseAuth.instance.currentUser == null) return null;
+    try {
+      return await ref.read(authRepositoryProvider).fetchSession();
+    } catch (_) {
+      return null;
+    }
   }
-});
+
+  /// Hot-loads the new avatar into active memory immediately without triggering routing redirects
+  void updatePhotoUrl(String photoUrl) {
+    final current = state.value;
+    if (current != null && current.user != null) {
+      state = AsyncData(
+        current.copyWith(
+          user: current.user!.copyWith(photoUrl: photoUrl),
+        ),
+      );
+    }
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => ref.read(authRepositoryProvider).fetchSession());
+  }
+}
+
+final sessionProvider =
+    AsyncNotifierProvider<SessionNotifier, Session?>(SessionNotifier.new);
 
 /// Role picked on the welcome screen before sign-up.
 class SelectedRole extends Notifier<AppRole> {

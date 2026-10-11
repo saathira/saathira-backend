@@ -47,10 +47,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final session = ref.read(sessionProvider);
 
-      if (session.isLoading) return loc == '/' ? null : '/';
+      // Only redirect to Splash on initial cold boot when no session exists yet
+      if (session.isLoading && !session.hasValue) return loc == '/' ? null : '/';
       final value = session.hasError ? null : session.value;
 
-      if (value == null) return _publicPaths.contains(loc) ? null : '/welcome';
+      if (value == null) {
+        if (session.isLoading) return loc == '/' ? null : '/';
+        return _publicPaths.contains(loc) ? null : '/welcome';
+      }
       if (!value.registered) return loc == '/register' ? null : '/register';
 
       // Registered user landing redirection
