@@ -11,11 +11,14 @@ import {
   UpdateUserStatusDto,
 } from './admin.dto';
 
+import { StorageService } from '../storage/storage.service';
+
 @Injectable()
 export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly storageService: StorageService,
   ) {}
 
   async logAudit(actorId: string, action: string, entityType: string, entityId: string, metadata?: any) {
@@ -126,7 +129,21 @@ export class AdminService {
       this.prisma.companionVerification.count({ where }),
     ]);
 
-    return { items, total, page, pageSize };
+    const itemsWithUrls = await Promise.all(
+      items.map(async (item) => {
+        const documentUrl = await this.storageService.getSignedVerificationUrl(item.documentPath);
+        const selfieUrl = item.selfiePath
+          ? await this.storageService.getSignedVerificationUrl(item.selfiePath)
+          : null;
+        return {
+          ...item,
+          documentUrl,
+          selfieUrl,
+        };
+      }),
+    );
+
+    return { items: itemsWithUrls, total, page, pageSize };
   }
 
   async approveVerification(id: string, adminUid: string, dto: ReviewVerificationDto) {

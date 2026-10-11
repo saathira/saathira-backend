@@ -1,13 +1,104 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../core/network/api_client.dart';
 import '../../repositories/auth_repository.dart';
 import '../../repositories/companion_repository.dart';
+import '../../repositories/storage_repository.dart';
 import '../../theme/app_theme.dart';
 
-class CompanionDashboardScreen extends ConsumerWidget {
+class CompanionDashboardScreen extends ConsumerStatefulWidget {
   const CompanionDashboardScreen({super.key});
+
+  @override
+  ConsumerState<CompanionDashboardScreen> createState() => _CompanionDashboardScreenState();
+}
+
+class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScreen> {
+  bool _uploadingAvatar = false;
+
+  Future<void> _pickAndUploadAvatar(ImageSource source) async {
+    final picker = ImagePicker();
+    try {
+      final picked = await picker.pickImage(
+        source: source,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 80,
+      );
+      if (picked == null) return;
+
+      setState(() => _uploadingAvatar = true);
+      await ref.read(storageRepositoryProvider).uploadAvatar(File(picked.path));
+
+      // Refresh user profile in app
+      await ref.read(authRepositoryProvider).fetchSession();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Companion profile photo updated successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update avatar: ${apiErrorMessage(e)}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  void _showAvatarPickerModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Change Profile Photo', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const SizedBox(height: 6),
+              const Text('Your photo will be showcased to clients in the companion directory.',
+                  style: TextStyle(color: AppColors.muted, fontSize: 13)),
+              const SizedBox(height: 18),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primary,
+                  child: Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                ),
+                title: const Text('Take Photo with Camera'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadAvatar(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: AppColors.primary,
+                  child: Icon(Icons.photo_library, color: Colors.white, size: 20),
+                ),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadAvatar(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildStatusChip(String status) {
     Color bg;
@@ -93,7 +184,7 @@ class CompanionDashboardScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(myCompanionProfileProvider);
     final user = ref.watch(sessionProvider).value?.user;
 
@@ -153,13 +244,46 @@ class CompanionDashboardScreen extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                            child: Text(
-                              (user?.fullName?.isNotEmpty == true) ? user!.fullName![0].toUpperCase() : 'C',
-                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
-                            ),
+                          Stack(
+                            children: [
+                              GestureDetector(
+                                onTap: () => _showAvatarPickerModal(context),
+                                child: CircleAvatar(
+                                  radius: 32,
+                                  backgroundColor: AppColors.primary.withValues(alpha: 0.2),
+                                  backgroundImage: (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
+                                      ? NetworkImage(user.photoUrl!)
+                                      : null,
+                                  child: _uploadingAvatar
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                        )
+                                      : (user?.photoUrl == null || user!.photoUrl!.isEmpty)
+                                          ? Text(
+                                              (user?.fullName?.isNotEmpty == true) ? user!.fullName![0].toUpperCase() : 'C',
+                                              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                            )
+                                          : null,
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: GestureDetector(
+                                  onTap: () => _showAvatarPickerModal(context),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.camera_alt, size: 13, color: Colors.white),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -181,109 +305,93 @@ class CompanionDashboardScreen extends ConsumerWidget {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      _buildStatusChip(profile?.verificationStatus ?? 'NOT_SUBMITTED'),
-                      const SizedBox(height: 14),
+                      const Divider(color: Colors.white10),
+                      const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Active & Accepting Bookings',
-                            style: TextStyle(
-                              color: isVerified ? Colors.white : AppColors.muted,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          Switch(
-                            value: profile?.isAvailable ?? false,
-                            onChanged: isVerified
-                                ? (val) async {
-                                    await ref.read(companionRepositoryProvider).updateProfile(isAvailable: val);
-                                    ref.read(myCompanionProfileProvider.notifier).refresh();
-                                  }
-                                : null,
+                          _buildStatusChip(profile?.verificationStatus ?? 'NOT_SUBMITTED'),
+                          Row(
+                            children: [
+                              const Icon(Icons.star, color: Colors.amber, size: 18),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${profile?.ratingAvg.toStringAsFixed(1) ?? '5.0'} (${profile?.ratingCount ?? 0})',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                      if (!isVerified)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 4),
-                          child: Text(
-                            'Bookings will open once your identity verification is approved.',
-                            style: TextStyle(color: AppColors.secondary, fontSize: 12),
-                          ),
-                        ),
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 24),
-                const Text('Management & Settings',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.muted)),
-                const SizedBox(height: 14),
+                const Text('Management & Availability', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 12),
 
-                // 0. Bookings & Client Requests
-                _buildMenuCard(
-                  context: context,
-                  icon: Icons.calendar_today_outlined,
-                  title: 'Bookings & Client Requests',
-                  subtitle: 'Manage upcoming meetings, accept & complete requests',
-                  onTap: () => context.push('/bookings'),
-                ),
-
-                // 1. Direct Client Chat
-                _buildMenuCard(
-                  context: context,
-                  icon: Icons.chat_bubble_outline,
-                  title: 'Messages & Client Chat',
-                  subtitle: 'Communicate with clients for confirmed meetings',
-                  onTap: () => context.push('/chat'),
-                ),
-
-                // 2. Identity Verification
+                // 1. Identity Verification Menu Card
                 _buildMenuCard(
                   context: context,
                   icon: Icons.verified_user_outlined,
-                  title: 'Identity Verification',
-                  subtitle: profile?.verificationStatus == 'APPROVED'
-                      ? 'Government ID verified'
-                      : 'Upload Government ID & Selfie for safety check',
-                  onTap: () => context.push('/companion/verification'),
+                  title: 'Identity Verification (KYC)',
+                  subtitle: isVerified
+                      ? 'Government ID verified by admin team'
+                      : 'Upload Government ID & Selfie to unlock bookings',
+                  trailingBadge: isVerified
+                      ? const Icon(Icons.check_circle, color: Colors.greenAccent)
+                      : Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text('Required', style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                  onTap: () => context.push('/companion-verification'),
                 ),
 
-                // 3. Activities & Custom Pricing
+                // 2. Activities & Custom Rates Menu Card
                 _buildMenuCard(
                   context: context,
-                  icon: Icons.category_outlined,
-                  title: 'My Permitted Activities',
-                  subtitle: '${profile?.activities.length ?? 0} activities enabled',
-                  onTap: () => context.push('/companion/activities'),
+                  icon: Icons.checklist_rtl_rounded,
+                  title: 'Offered Activities & Pricing',
+                  subtitle: 'Select activities you offer and configure custom rates',
+                  onTap: () => context.push('/companion-activities'),
                 ),
 
-                // 4. Weekly Availability
+                // 3. Weekly Availability Slots
                 _buildMenuCard(
                   context: context,
                   icon: Icons.calendar_month_outlined,
-                  title: 'Availability & Slots',
-                  subtitle: '${profile?.availability.length ?? 0} weekly time windows configured',
-                  onTap: () => context.push('/companion/availability'),
+                  title: 'Weekly Working Hours',
+                  subtitle: 'Manage your active days and booking time slots',
+                  onTap: () => context.push('/companion-availability'),
                 ),
 
-                // 5. Bio, Rates & Payout UPI
+                // 4. Hourly Base Rate & Bio Settings
                 _buildMenuCard(
                   context: context,
-                  icon: Icons.account_circle_outlined,
-                  title: 'Profile, Rates & Payouts',
-                  subtitle: 'Base rate: ₹${profile?.hourlyRateInRupees ?? 0}/hr • UPI: ${profile?.payoutUpi ?? "Not set"}',
-                  onTap: () => context.push('/companion/profile-edit'),
+                  icon: Icons.currency_rupee_rounded,
+                  title: 'Profile, Bio & Base Rate',
+                  subtitle: '₹${((profile?.hourlyRate ?? 100000) / 100).toStringAsFixed(0)}/hr • Radius: ${profile?.serviceRadiusKm ?? 10} km',
+                  onTap: () => context.push('/companion-settings'),
                 ),
 
-                // 6. Safety & SOS Center
+                const SizedBox(height: 20),
+                const Text('Earnings & Trust', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                const SizedBox(height: 12),
+
+                // 5. UPI Payout Configuration
                 _buildMenuCard(
                   context: context,
-                  icon: Icons.shield_outlined,
-                  title: 'Safety, SOS & Incident Reporting',
-                  subtitle: 'Emergency assistance, guidelines & blocked users',
-                  onTap: () => context.push('/safety'),
+                  icon: Icons.account_balance_wallet_outlined,
+                  title: 'Payout Settings (UPI)',
+                  subtitle: profile?.payoutUpi != null
+                      ? 'Payouts sent to: ${profile!.payoutUpi}'
+                      : 'Link UPI VPA to receive booking payments automatically',
+                  onTap: () => context.push('/companion-settings'),
                 ),
               ],
             ),

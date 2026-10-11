@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Check, X } from 'lucide-react';
+import { ShieldCheck, Check, X, ExternalLink, FileText, Image as ImageIcon } from 'lucide-react';
 import { adminApi } from '../api/client';
 
 export const VerificationsPage: React.FC = () => {
@@ -170,8 +170,8 @@ export const VerificationsPage: React.FC = () => {
 
       {/* Review Modal */}
       {selectedItem && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-brand-card w-full max-w-lg rounded-2xl border border-brand-border p-6 space-y-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-brand-card w-full max-w-2xl rounded-2xl border border-brand-border p-6 space-y-5 shadow-2xl my-8">
             <div className="flex items-center justify-between border-b border-brand-border pb-4">
               <div className="flex items-center gap-2.5">
                 <ShieldCheck className="w-5 h-5 text-brand-primary" />
@@ -185,26 +185,120 @@ export const VerificationsPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-400">Applicant:</span>
-                <span className="font-bold text-white">{selectedItem.companion?.user?.fullName}</span>
+            <div className="grid grid-cols-2 gap-3 text-xs bg-brand-dark/50 p-3.5 rounded-xl border border-white/[0.04]">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Applicant</span>
+                <span className="font-bold text-white text-sm">{selectedItem.companion?.user?.fullName}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-400">Phone & City:</span>
-                <span className="text-slate-300">
-                  {selectedItem.companion?.user?.phone} • {selectedItem.companion?.user?.city}
+              <div>
+                <span className="text-slate-400 block text-[11px]">Phone & City</span>
+                <span className="text-slate-200">
+                  {selectedItem.companion?.user?.phone} • {selectedItem.companion?.user?.city || 'Not specified'}
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-400">Document Type:</span>
-                <span className="font-mono text-purple-300">{selectedItem.documentType}</span>
+              <div>
+                <span className="text-slate-400 block text-[11px]">Document Type</span>
+                <span className="font-mono text-purple-300 font-semibold">{selectedItem.documentType}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-white/[0.04]">
-                <span className="text-slate-400">Storage Reference:</span>
-                <span className="font-mono text-slate-400 truncate max-w-[200px]">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Storage Path</span>
+                <span className="font-mono text-slate-400 truncate block text-[11px]" title={selectedItem.documentPath}>
                   {selectedItem.documentPath}
                 </span>
+              </div>
+            </div>
+
+            {/* Document & Selfie Image Previews */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Document Image Preview */}
+              <div className="bg-brand-dark/80 rounded-xl border border-brand-border p-3 space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                  <div className="flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-brand-primary" />
+                    <span>Government ID Document</span>
+                  </div>
+                  {selectedItem.documentUrl && (
+                    <a
+                      href={selectedItem.documentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-brand-primary hover:underline flex items-center gap-1"
+                    >
+                      <span>Full View</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                {selectedItem.documentUrl ? (
+                  selectedItem.documentUrl.toLowerCase().includes('.pdf') ? (
+                    <div className="h-44 flex flex-col items-center justify-center bg-black/30 rounded-lg border border-dashed border-white/10 text-slate-400 gap-2">
+                      <FileText className="w-10 h-10 text-brand-primary" />
+                      <span className="text-xs">PDF Document</span>
+                      <a
+                        href={selectedItem.documentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1 bg-brand-primary/20 text-brand-primary text-xs rounded hover:bg-brand-primary hover:text-white transition-colors"
+                      >
+                        Open PDF File
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="relative group rounded-lg overflow-hidden border border-white/10 bg-black/40 h-44 flex items-center justify-center">
+                      <img
+                        src={selectedItem.documentUrl}
+                        alt="KYC Document"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )
+                ) : (
+                  <div className="h-44 flex flex-col items-center justify-center bg-black/30 rounded-lg border border-dashed border-white/10 text-slate-500 text-xs">
+                    <span>No image uploaded or path invalid</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Selfie Image Preview */}
+              <div className="bg-brand-dark/80 rounded-xl border border-brand-border p-3 space-y-2">
+                <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                  <div className="flex items-center gap-1.5">
+                    <ImageIcon className="w-4 h-4 text-emerald-400" />
+                    <span>Applicant Selfie (Face Match)</span>
+                  </div>
+                  {selectedItem.selfieUrl && (
+                    <a
+                      href={selectedItem.selfieUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] text-emerald-400 hover:underline flex items-center gap-1"
+                    >
+                      <span>Full View</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                {selectedItem.selfieUrl ? (
+                  <div className="relative group rounded-lg overflow-hidden border border-white/10 bg-black/40 h-44 flex items-center justify-center">
+                    <img
+                      src={selectedItem.selfieUrl}
+                      alt="Applicant Selfie"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="h-44 flex flex-col items-center justify-center bg-black/30 rounded-lg border border-dashed border-white/10 text-slate-500 text-xs">
+                    <span>Selfie not submitted</span>
+                  </div>
+                )}
               </div>
             </div>
 
