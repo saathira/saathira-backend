@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../core/network/api_client.dart';
+import '../../repositories/auth_repository.dart';
 import '../../repositories/companion_repository.dart';
 import '../../repositories/storage_repository.dart';
 import '../../theme/app_theme.dart';
@@ -113,6 +114,7 @@ class _CompanionVerificationScreenState extends ConsumerState<CompanionVerificat
         _selfieFile = null;
       });
       ref.read(myCompanionProfileProvider.notifier).refresh();
+      ref.invalidate(sessionProvider);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

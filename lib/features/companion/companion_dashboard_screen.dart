@@ -18,6 +18,7 @@ class CompanionDashboardScreen extends ConsumerStatefulWidget {
 
 class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScreen> {
   bool _uploadingAvatar = false;
+  String? _localPhotoUrl;
 
   Future<void> _pickAndUploadAvatar(ImageSource source) async {
     final picker = ImagePicker();
@@ -31,10 +32,18 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
       if (picked == null) return;
 
       setState(() => _uploadingAvatar = true);
-      await ref.read(storageRepositoryProvider).uploadAvatar(File(picked.path));
+      final newPhotoUrl = await ref.read(storageRepositoryProvider).uploadAvatar(File(picked.path));
 
-      // Refresh user profile in app
-      await ref.read(authRepositoryProvider).fetchSession();
+      // 1. Immediately reflect the photo locally
+      if (mounted) {
+        setState(() {
+          _localPhotoUrl = newPhotoUrl;
+        });
+      }
+
+      // 2. Invalidate global sessionProvider & companion profile
+      ref.invalidate(sessionProvider);
+      ref.read(myCompanionProfileProvider.notifier).refresh();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -251,8 +260,9 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
                                 child: CircleAvatar(
                                   radius: 32,
                                   backgroundColor: AppColors.primary.withValues(alpha: 0.2),
-                                  backgroundImage: (user?.photoUrl != null && user!.photoUrl!.isNotEmpty)
-                                      ? NetworkImage(user.photoUrl!)
+                                  backgroundImage: ((_localPhotoUrl ?? user?.photoUrl) != null &&
+                                          (_localPhotoUrl ?? user!.photoUrl)!.isNotEmpty)
+                                      ? NetworkImage((_localPhotoUrl ?? user!.photoUrl)!)
                                       : null,
                                   child: _uploadingAvatar
                                       ? const SizedBox(
@@ -260,7 +270,8 @@ class _CompanionDashboardScreenState extends ConsumerState<CompanionDashboardScr
                                           height: 22,
                                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                         )
-                                      : (user?.photoUrl == null || user!.photoUrl!.isEmpty)
+                                      : ((_localPhotoUrl ?? user?.photoUrl) == null ||
+                                              (_localPhotoUrl ?? user!.photoUrl)!.isEmpty)
                                           ? Text(
                                               (user?.fullName?.isNotEmpty == true) ? user!.fullName![0].toUpperCase() : 'C',
                                               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),

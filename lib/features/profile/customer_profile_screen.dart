@@ -19,6 +19,7 @@ class CustomerProfileScreen extends ConsumerStatefulWidget {
 
 class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
   bool _uploadingAvatar = false;
+  String? _localPhotoUrl;
 
   Future<void> _pickAndUploadAvatar(ImageSource source) async {
     final picker = ImagePicker();
@@ -32,10 +33,17 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
       if (picked == null) return;
 
       setState(() => _uploadingAvatar = true);
-      await ref.read(storageRepositoryProvider).uploadAvatar(File(picked.path));
+      final newPhotoUrl = await ref.read(storageRepositoryProvider).uploadAvatar(File(picked.path));
 
-      // Refresh user profile in app
-      await ref.read(authRepositoryProvider).fetchSession();
+      // 1. Immediately update UI state
+      if (mounted) {
+        setState(() {
+          _localPhotoUrl = newPhotoUrl;
+        });
+      }
+
+      // 2. Invalidate global sessionProvider across the app
+      ref.invalidate(sessionProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -424,8 +432,9 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                       child: CircleAvatar(
                         radius: 36,
                         backgroundColor: AppColors.primary.withValues(alpha: 0.3),
-                        backgroundImage: (user.photoUrl != null && user.photoUrl!.isNotEmpty)
-                            ? NetworkImage(user.photoUrl!)
+                        backgroundImage: ((_localPhotoUrl ?? user.photoUrl) != null &&
+                                (_localPhotoUrl ?? user.photoUrl)!.isNotEmpty)
+                            ? NetworkImage((_localPhotoUrl ?? user.photoUrl)!)
                             : null,
                         child: _uploadingAvatar
                             ? const SizedBox(
@@ -433,7 +442,8 @@ class _CustomerProfileScreenState extends ConsumerState<CustomerProfileScreen> {
                                 height: 24,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
-                            : (user.photoUrl == null || user.photoUrl!.isEmpty)
+                            : ((_localPhotoUrl ?? user.photoUrl) == null ||
+                                    (_localPhotoUrl ?? user.photoUrl)!.isEmpty)
                                 ? Text(
                                     initialLetter,
                                     style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
