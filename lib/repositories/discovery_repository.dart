@@ -50,6 +50,30 @@ class DiscoveryFilterNotifier extends Notifier<DiscoveryFilter> {
     state = state.copyWith(city: city, clearCity: city == null);
   }
 
+  void setLocation({String? city, double? lat, double? lng, int? radiusKm}) {
+    state = state.copyWith(
+      city: city,
+      clearCity: city == null,
+      lat: lat,
+      lng: lng,
+      clearCoordinates: lat == null || lng == null,
+      radiusKm: radiusKm,
+    );
+  }
+
+  void setCoordinates(double? lat, double? lng, {int? radiusKm}) {
+    state = state.copyWith(
+      lat: lat,
+      lng: lng,
+      clearCoordinates: lat == null || lng == null,
+      radiusKm: radiusKm,
+    );
+  }
+
+  void setRadius(int? radiusKm) {
+    state = state.copyWith(radiusKm: radiusKm, clearRadius: radiusKm == null);
+  }
+
   void setPriceRange(int? min, int? max) {
     state = state.copyWith(minPrice: min, maxPrice: max, clearPrice: min == null && max == null);
   }

@@ -121,12 +121,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 setModalState(() => detecting = true);
                                 try {
                                   final loc = await ref.read(currentLocationProvider.notifier).autoDetectLocation();
-                                  ref.read(discoveryFilterProvider.notifier).setCity(loc.city);
+                                  ref.read(discoveryFilterProvider.notifier).setLocation(
+                                        city: loc.city,
+                                        lat: loc.latitude,
+                                        lng: loc.longitude,
+                                      );
                                   if (mounted) {
                                     nav.pop();
+                                    final precision = loc.isGpsPrecise ? ' (🎯 High-Accuracy GPS)' : ' (Network)';
                                     messenger.showSnackBar(
                                       SnackBar(
-                                        content: Text('📍 Location auto-detected: ${loc.displayName}'),
+                                        content: Text('📍 Location: ${loc.displayName}$precision'),
                                         backgroundColor: const Color(0xFF10B981),
                                         behavior: SnackBarBehavior.floating,
                                       ),

@@ -42,11 +42,16 @@ class _CompanionsDirectoryScreenState
     setState(() => _detectingLocation = true);
     try {
       final loc = await ref.read(currentLocationProvider.notifier).autoDetectLocation();
-      ref.read(discoveryFilterProvider.notifier).setCity(loc.city);
+      ref.read(discoveryFilterProvider.notifier).setLocation(
+            city: loc.city,
+            lat: loc.latitude,
+            lng: loc.longitude,
+          );
       if (mounted) {
+        final precision = loc.isGpsPrecise ? ' (🎯 High-Accuracy GPS)' : ' (Network)';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('📍 Filtered companions in ${loc.displayName}'),
+            content: Text('📍 Location: ${loc.displayName}$precision'),
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
           ),
@@ -324,23 +329,24 @@ class _CompanionsDirectoryScreenState
                     // Avatar with verified badge
                     Stack(
                       children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.primary,
-                          ),
-                          child: Center(
-                            child: Text(
-                              initial,
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
+                        CircleAvatar(
+                          radius: 28,
+                          backgroundColor: AppColors.primary,
+                          backgroundImage: (companion.user.photoUrl != null &&
+                                  companion.user.photoUrl!.isNotEmpty)
+                              ? NetworkImage(companion.user.photoUrl!)
+                              : null,
+                          child: (companion.user.photoUrl == null ||
+                                  companion.user.photoUrl!.isEmpty)
+                              ? Text(
+                                  initial,
+                                  style: const TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : null,
                         ),
                         if (companion.verificationStatus == 'APPROVED')
                           Positioned(

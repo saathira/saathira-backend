@@ -115,6 +115,9 @@ class DiscoveryFilter {
   final int? maxPrice;
   final double? minRating;
   final String? sort;
+  final double? lat;
+  final double? lng;
+  final int? radiusKm;
 
   const DiscoveryFilter({
     this.activity,
@@ -124,6 +127,9 @@ class DiscoveryFilter {
     this.maxPrice,
     this.minRating,
     this.sort,
+    this.lat,
+    this.lng,
+    this.radiusKm,
   });
 
   DiscoveryFilter copyWith({
@@ -139,6 +145,11 @@ class DiscoveryFilter {
     double? minRating,
     bool clearRating = false,
     String? sort,
+    double? lat,
+    double? lng,
+    bool clearCoordinates = false,
+    int? radiusKm,
+    bool clearRadius = false,
   }) {
     return DiscoveryFilter(
       activity: clearActivity ? null : (activity ?? this.activity),
@@ -148,6 +159,9 @@ class DiscoveryFilter {
       maxPrice: clearPrice ? null : (maxPrice ?? this.maxPrice),
       minRating: clearRating ? null : (minRating ?? this.minRating),
       sort: sort ?? this.sort,
+      lat: clearCoordinates ? null : (lat ?? this.lat),
+      lng: clearCoordinates ? null : (lng ?? this.lng),
+      radiusKm: clearRadius ? null : (radiusKm ?? this.radiusKm),
     );
   }
 
@@ -160,6 +174,9 @@ class DiscoveryFilter {
       'maxPrice': ?maxPrice,
       'minRating': ?minRating,
       'sort': ?sort,
+      'lat': ?lat,
+      'lng': ?lng,
+      'radiusKm': ?radiusKm,
     };
   }
 }

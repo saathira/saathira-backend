@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 
 class UserLocation {
   final String city;
@@ -10,6 +11,8 @@ class UserLocation {
   final String? zipCode;
   final String? ip;
   final DateTime detectedAt;
+  final bool isGpsPrecise;
+  final double? accuracyMeters;
 
   const UserLocation({
     required this.city,
@@ -20,6 +23,8 @@ class UserLocation {
     this.zipCode,
     this.ip,
     required this.detectedAt,
+    this.isGpsPrecise = false,
+    this.accuracyMeters,
   });
 
   String get displayName => state.isNotEmpty ? '$city, $state' : city;
@@ -32,6 +37,7 @@ class UserLocation {
       latitude: 19.0760,
       longitude: 72.8777,
       detectedAt: DateTime.now(),
+      isGpsPrecise: false,
     );
   }
 }
@@ -44,9 +50,21 @@ class LocationService {
     ),
   );
 
-  /// Automatically fetch device location via high-speed geo-IP & reverse lookup
+  /// Automatically fetch device location:
+  /// 1. Tries precise device hardware GPS via Geolocator first
+  /// 2. If denied or unavailable, falls back to IP geolocation
   Future<UserLocation> fetchCurrentLocation() async {
-    // 1. Primary source: ip-api.com
+    // 1. Primary: Device-level GPS Coordinates
+    try {
+      final gpsLoc = await _tryGetDeviceGpsLocation();
+      if (gpsLoc != null) {
+        return gpsLoc;
+      }
+    } catch (_) {
+      // Fall through to IP geolocation
+    }
+
+    // 2. Secondary fallback: ip-api.com
     try {
       final res = await _dio.get('http://ip-api.com/json/?fields=status,country,regionName,city,zip,lat,lon,query');
       if (res.statusCode == 200 && res.data is Map && res.data['status'] == 'success') {
@@ -69,6 +87,7 @@ class LocationService {
             zipCode: zip,
             ip: ip,
             detectedAt: DateTime.now(),
+            isGpsPrecise: false,
           );
         }
       }
@@ -76,13 +95,13 @@ class LocationService {
       // Ignore and fallback to secondary provider
     }
 
-    // 2. Secondary fallback: ipapi.co
+    // 3. Tertiary fallback: ipapi.co
     try {
       final res = await _dio.get('https://ipapi.co/json/');
       if (res.statusCode == 200 && res.data is Map) {
         final data = res.data as Map;
         final city = (data['city'] as String?)?.trim();
-        final region = (data['region'] as String?)?.trim();
+        final region = (data['regionName'] as String?)?.trim();
         final country = (data['country_name'] as String?)?.trim() ?? 'India';
         final lat = (data['latitude'] as num?)?.toDouble() ?? 19.0760;
         final lon = (data['longitude'] as num?)?.toDouble() ?? 72.8777;
@@ -99,6 +118,7 @@ class LocationService {
             zipCode: postal,
             ip: ip,
             detectedAt: DateTime.now(),
+            isGpsPrecise: false,
           );
         }
       }
@@ -106,8 +126,76 @@ class LocationService {
       // Ignore and proceed to fallback
     }
 
-    // 3. Fallback for offline or sandbox mode
+    // 4. Default fallback for sandbox / offline
     return UserLocation.fallback();
+  }
+
+  /// Attempts to acquire device-level GPS coordinates and reverse geocode city name
+  Future<UserLocation?> _tryGetDeviceGpsLocation() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return null;
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) return null;
+    }
+
+    if (permission == LocationPermission.deniedForever) return null;
+
+    // Fetch high-accuracy device GPS position
+    final position = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 8),
+      ),
+    );
+
+    String city = 'Nearby';
+    String state = '';
+    String country = 'India';
+
+    // Reverse geocode GPS coordinates to obtain readable city/locality
+    try {
+      final geoRes = await _dio.get(
+        'https://api.bigdatacloud.net/data/reverse-geocode-client',
+        queryParameters: {
+          'latitude': position.latitude,
+          'longitude': position.longitude,
+          'localityLanguage': 'en',
+        },
+      );
+
+      if (geoRes.statusCode == 200 && geoRes.data is Map) {
+        final d = geoRes.data as Map;
+        final detectedCity = (d['city'] as String?)?.trim() ?? (d['locality'] as String?)?.trim();
+        final detectedState = (d['principalSubdivision'] as String?)?.trim();
+        final detectedCountry = (d['countryName'] as String?)?.trim();
+
+        if (detectedCity != null && detectedCity.isNotEmpty) {
+          city = detectedCity;
+        }
+        if (detectedState != null && detectedState.isNotEmpty) {
+          state = detectedState;
+        }
+        if (detectedCountry != null && detectedCountry.isNotEmpty) {
+          country = detectedCountry;
+        }
+      }
+    } catch (_) {
+      // Keep coordinates even if reverse geocoding fails
+    }
+
+    return UserLocation(
+      city: city,
+      state: state,
+      country: country,
+      latitude: position.latitude,
+      longitude: position.longitude,
+      detectedAt: DateTime.now(),
+      isGpsPrecise: true,
+      accuracyMeters: position.accuracy,
+    );
   }
 }
 
@@ -141,6 +229,7 @@ class CurrentLocationNotifier extends Notifier<AsyncValue<UserLocation?>> {
         latitude: lat ?? 19.0760,
         longitude: lng ?? 72.8777,
         detectedAt: DateTime.now(),
+        isGpsPrecise: lat != null && lng != null,
       ),
     );
   }
