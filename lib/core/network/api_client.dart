@@ -7,8 +7,8 @@ import '../config/app_config.dart';
 final apiClientProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: AppConfig.apiBaseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 15),
+    connectTimeout: const Duration(seconds: 45),
+    receiveTimeout: const Duration(seconds: 45),
   ));
   dio.interceptors.add(InterceptorsWrapper(onRequest: (options, handler) async {
     final user = FirebaseAuth.instance.currentUser;
