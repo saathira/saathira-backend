@@ -112,11 +112,7 @@ class _SafetyCenterScreenState extends ConsumerState<SafetyCenterScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF991B1B), Color(0xFF7F1D1D)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: const Color(0xFF991B1B),
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(

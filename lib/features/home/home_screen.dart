@@ -85,9 +85,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     Container(
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.primary, AppColors.secondary],
-                        ),
+                        color: AppColors.primary,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
@@ -246,7 +244,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.auto_awesome_rounded,
       'badge': 'Explore All',
       'subtitle': 'Browse all companions',
-      'gradient': [Color(0xFF6366F1), Color(0xFF8B5CF6)],
     },
     {
       'slug': 'shopping',
@@ -255,7 +252,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.shopping_bag_rounded,
       'badge': 'Popular',
       'subtitle': 'Retail & errands companion',
-      'gradient': [Color(0xFF6366F1), Color(0xFF4F46E5)],
     },
     {
       'slug': 'doctor-visit',
@@ -264,7 +260,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.local_hospital_rounded,
       'badge': 'Medical Care',
       'subtitle': 'Clinics & hospital wait support',
-      'gradient': [Color(0xFFEC4899), Color(0xFFF43F5E)],
     },
     {
       'slug': 'cafe-dinner',
@@ -273,7 +268,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.restaurant_rounded,
       'badge': 'Trending',
       'subtitle': 'Coffee talks & culinary outings',
-      'gradient': [Color(0xFFF59E0B), Color(0xFFEA580C)],
     },
     {
       'slug': 'movies',
@@ -282,7 +276,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.movie_filter_rounded,
       'badge': 'Entertainment',
       'subtitle': 'Cinema, shows & exhibitions',
-      'gradient': [Color(0xFF8B5CF6), Color(0xFFD946EF)],
     },
     {
       'slug': 'city-exploration',
@@ -291,7 +284,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.explore_rounded,
       'badge': 'Outdoor',
       'subtitle': 'Parks, monuments & photo strolls',
-      'gradient': [Color(0xFF10B981), Color(0xFF059669)],
     },
     {
       'slug': 'conversation',
@@ -300,7 +292,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       'icon': Icons.forum_rounded,
       'badge': 'Social Talk',
       'subtitle': 'Meaningful discussions & tea chats',
-      'gradient': [Color(0xFF06B6D4), Color(0xFF0284C7)],
     },
   ];
 
@@ -568,8 +559,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   Container(
                     margin: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      gradient: hasActiveFilter ? AppColors.brandGradient : null,
-                      color: hasActiveFilter ? null : Colors.white.withValues(alpha: 0.06),
+                      color: hasActiveFilter ? AppColors.primary : Colors.white.withValues(alpha: 0.06),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: IconButton(
@@ -602,9 +592,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.secondary],
-                            ),
+                            color: AppColors.primary,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: const Icon(Icons.verified_rounded, color: Colors.white, size: 16),
@@ -681,7 +669,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       final isSelected = isAllOption
                           ? filter.activity == null
                           : filter.activity == slug;
-                      final gradientColors = cat['gradient'] as List<Color>;
 
                       return InkWell(
                         borderRadius: BorderRadius.circular(22),
@@ -700,28 +687,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           width: 168,
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            gradient: isSelected
-                                ? LinearGradient(
-                                    colors: [
-                                      gradientColors.first.withValues(alpha: 0.28),
-                                      AppColors.surface,
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  )
-                                : null,
-                            color: isSelected ? null : AppColors.surface,
+                            color: isSelected
+                                ? AppColors.primary.withValues(alpha: 0.18)
+                                : AppColors.surface,
                             borderRadius: BorderRadius.circular(22),
                             border: Border.all(
                               color: isSelected
-                                  ? gradientColors.first
+                                  ? AppColors.primary
                                   : Colors.white.withValues(alpha: 0.08),
                               width: isSelected ? 1.8 : 1.0,
                             ),
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
-                                      color: gradientColors.first.withValues(alpha: 0.35),
+                                      color: AppColors.primary.withValues(alpha: 0.35),
                                       blurRadius: 16,
                                       offset: const Offset(0, 6),
                                     ),
@@ -746,15 +725,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     width: 38,
                                     height: 38,
                                     decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: gradientColors,
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      ),
+                                      color: AppColors.primary,
                                       borderRadius: BorderRadius.circular(12),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: gradientColors.first.withValues(alpha: 0.3),
+                                          color: AppColors.primary.withValues(alpha: 0.3),
                                           blurRadius: 6,
                                           offset: const Offset(0, 2),
                                         ),
@@ -771,7 +746,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                     decoration: BoxDecoration(
                                       color: isSelected
-                                          ? gradientColors.first.withValues(alpha: 0.3)
+                                          ? AppColors.primary.withValues(alpha: 0.3)
                                           : Colors.white.withValues(alpha: 0.06),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -884,16 +859,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF10B981).withValues(alpha: 0.15),
-                    AppColors.primary.withValues(alpha: 0.12),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: AppColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+                border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -1292,19 +1260,14 @@ class _AutoSlideCompanionsCarouselState
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Avatar with gradient border
+                    // Avatar with purple border
                     Stack(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(2.5),
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [
-                                AppColors.primary,
-                                AppColors.secondary,
-                              ],
-                            ),
+                            color: AppColors.primary,
                           ),
                           child: CircleAvatar(
                             radius: 28,

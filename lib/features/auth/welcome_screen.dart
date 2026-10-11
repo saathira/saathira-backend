@@ -12,13 +12,7 @@ class WelcomeScreen extends ConsumerWidget {
 
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(
-          gradient: RadialGradient(
-            center: const Alignment(-0.8, -0.9),
-            radius: 1.4,
-            colors: [AppColors.primary.withValues(alpha: 0.35), AppColors.bg],
-          ),
-        ),
+        color: AppColors.bg,
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),

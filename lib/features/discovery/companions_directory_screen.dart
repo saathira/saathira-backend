@@ -329,11 +329,7 @@ class _CompanionsDirectoryScreenState
                           height: 56,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [AppColors.primary, AppColors.secondary],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                            color: AppColors.primary,
                           ),
                           child: Center(
                             child: Text(

@@ -97,15 +97,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  ShaderMask(
-                    shaderCallback: (r) => AppColors.brandGradient.createShader(r),
-                    child: Text(
-                      'Saathira',
-                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                    ),
+                  Text(
+                    'Saathira',
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
                   ),
                 ],
               ),

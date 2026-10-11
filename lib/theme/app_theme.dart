@@ -3,15 +3,15 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Saathira design tokens.
 class AppColors {
-  static const primary = Color(0xFF7C4DFF); // violet
-  static const secondary = Color(0xFFFF6E9C); // rose
+  static const primary = Color(0xFF7C4DFF); // single purple color
+  static const secondary = Color(0xFF7C4DFF); // single purple color across complete app
   static const bg = Color(0xFF0F0E17);
   static const surface = Color(0xFF1A1826);
   static const text = Color(0xFFF4F2FF);
   static const muted = Color(0xFF9A96B5);
 
   static const brandGradient = LinearGradient(
-    colors: [primary, secondary],
+    colors: [primary, primary],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );

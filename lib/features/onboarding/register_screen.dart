@@ -122,7 +122,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 width: halfWidth,
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: AppColors.brandGradient,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
